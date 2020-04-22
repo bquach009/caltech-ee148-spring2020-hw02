@@ -28,9 +28,9 @@ Your code below.
 '''
 
 file_names = np.random.permutation(file_names)
-split_idx = round(0.15*len(file_names))
-file_names_test = file_names[:split_idx]
-file_names_train = file_names[split_idx:]
+split_idx = round(train_frac*len(file_names))
+file_names_train = file_names[:split_idx]
+file_names_test = file_names[split_idx:]
 
 assert (len(file_names_train) + len(file_names_test)) == len(file_names)
 assert len(np.intersect1d(file_names_train,file_names_test)) == 0
