@@ -18,9 +18,17 @@ def compute_convolution(I, T, stride=None):
     # Extract height and width of the template
     h, w, _ = T.shape
 
+    # adjusted height of box
+    if h == 62:
+        adj_h = 20
+    else:
+        adj_h = round(h / 2)
+
     # Create template vector to convolve
     temp = T.flatten()
-    temp = temp / np.linalg.norm(temp)
+    norm = np.linalg.norm(temp)
+    if norm > 0:
+        temp = temp / norm
 
     # Use three channels to store
     # - heatmap score (i.e. confidence score)
@@ -33,7 +41,7 @@ def compute_convolution(I, T, stride=None):
             norm = np.linalg.norm(imag)
             if norm > 0:
                 imag = imag / norm
-            heatmap[i, j, :] = [np.dot(temp, imag), h, w]
+            heatmap[i, j, :] = [np.dot(temp, imag), adj_h, w]
 
     '''
     END YOUR CODE
@@ -68,8 +76,9 @@ def predict_boxes(heatmap):
     T = 0.92
 
     rows, cols, _ = heatmap.shape
+    # Assume traffic lights in top half of the picture
 
-    for i in range(rows):
+    for i in range(rows // 2):
         for j in range(cols):
             score = heatmap[i, j, 0]
             if score >= T:
@@ -117,14 +126,19 @@ def detect_red_light_mf(I):
 
     # convert to numpy array:
     temp = temp.crop((316, 154, 323, 171))
-    sizes = [0.5, 1, 2]
-    w, h = temp.size
-    for size in sizes:
-        T = temp.resize((round(size*w), round(size*h)))
-        T = np.asarray(temp).copy()
+
+    # Extract different size image
+    temp2 = Image.open("data/RedLights2011_Medium/RL-010.jpg")
+    temp2 = temp2.crop((325, 30, 345, 92))
+
+    for filter in [temp, temp2]:
+        T = np.asarray(filter).copy()
 
         heatmap = compute_convolution(I, T)
-        output.extend(predict_boxes(heatmap))
+        result = predict_boxes(heatmap)
+        for item in result:
+            if item not in output:
+                output.append(item)
     '''
     END YOUR CODE
     '''
@@ -149,14 +163,15 @@ preds_path = 'data/hw02_preds'
 os.makedirs(preds_path, exist_ok=True) # create directory if needed
 
 # Set this parameter to True when you're done with algorithm development:
-done_tweaking = False
+done_tweaking = True
 
 '''
 Make predictions on the training set.
 '''
 preds_train = {}
+n = len(file_names_train)
 for i in range(len(file_names_train)):
-    print("Predicting:", file_names_train[i])
+    print("Predicting: {}/{}".format(i, n))
 
     # read image using PIL:
     I = Image.open(os.path.join(data_path,file_names_train[i]))
@@ -167,7 +182,7 @@ for i in range(len(file_names_train)):
     preds_train[file_names_train[i]] = detect_red_light_mf(I)
 
 # save preds (overwrites any previous predictions!)
-with open(os.path.join(preds_path,'preds_train.json'),'w') as f:
+with open(os.path.join(preds_path,'weak_preds_train.json'),'w') as f:
     json.dump(preds_train,f)
 
 if done_tweaking:
@@ -186,5 +201,5 @@ if done_tweaking:
         preds_test[file_names_test[i]] = detect_red_light_mf(I)
 
     # save preds (overwrites any previous predictions!)
-    with open(os.path.join(preds_path,'preds_test.json'),'w') as f:
+    with open(os.path.join(preds_path,'weak_preds_test.json'),'w') as f:
         json.dump(preds_test,f)
